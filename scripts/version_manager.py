@@ -187,6 +187,9 @@ class RulesVersionManager:
         """
         分析规则变更对需求的影响
         
+        注意：v5评分器返回scoring_prompt而非直接评分，
+        此方法通过对比两个版本规则的权重和阈值变化来估算影响
+        
         Args:
             version1: 旧版本
             version2: 新版本
@@ -195,60 +198,32 @@ class RulesVersionManager:
         Returns:
             影响分析结果
         """
-        from scripts.demand_scorer import DemandScorer
-        
         v1 = self.get_version(version1)
         v2 = self.get_version(version2)
         
         if not v1 or not v2:
             return {'error': '版本不存在'}
         
-        # 临时保存旧版本规则
-        temp_path1 = self.rules_path + '.tmp_v1'
-        temp_path2 = self.rules_path + '.tmp_v2'
+        diff = self.compare_versions(version1, version2)
         
-        with open(temp_path1, 'w', encoding='utf-8') as f:
-            yaml.dump(v1['rules'], f, allow_unicode=True)
+        weight_changes = [c for c in diff['changes'] if c['type'] == 'weight_change']
+        threshold_changes = [c for c in diff['changes'] if c['type'] == 'threshold_change']
         
-        with open(temp_path2, 'w', encoding='utf-8') as f:
-            yaml.dump(v2['rules'], f, allow_unicode=True)
-        
-        # 评分对比
-        scorer1 = DemandScorer(temp_path1)
-        scorer2 = DemandScorer(temp_path2)
-        
-        results = []
-        for demand in demands:
-            r1 = scorer1.score_demand(demand)
-            r2 = scorer2.score_demand(demand)
-            
-            grade_changed = r1['grade'] != r2['grade']
-            score_diff = r2['total_score'] - r1['total_score']
-            
-            results.append({
-                'id': demand.get('id', 'unknown'),
-                'old_score': r1['total_score'],
-                'new_score': r2['total_score'],
-                'old_grade': r1['grade'],
-                'new_grade': r2['grade'],
-                'grade_changed': grade_changed,
-                'score_diff': score_diff
-            })
-        
-        # 清理临时文件
-        for path in [temp_path1, temp_path2]:
-            if os.path.exists(path):
-                os.remove(path)
-        
-        grade_changes = len([r for r in results if r['grade_changed']])
+        impact_level = 'low'
+        if threshold_changes or len(weight_changes) >= 3:
+            impact_level = 'high'
+        elif weight_changes:
+            impact_level = 'medium'
         
         return {
             'version1': version1,
             'version2': version2,
             'total_demands': len(demands),
-            'grade_changes': grade_changes,
-            'change_rate': grade_changes / len(demands) if demands else 0,
-            'demands_affected': [r for r in results if r['grade_changed']]
+            'impact_level': impact_level,
+            'weight_changes': weight_changes,
+            'threshold_changes': threshold_changes,
+            'rule_diff': diff,
+            'recommendation': '建议重新评审受影响需求' if impact_level == 'high' else '影响可控，可选择性复评'
         }
     
     def export_rules_for_version(self, version: str, output_path: str = None) -> str:
