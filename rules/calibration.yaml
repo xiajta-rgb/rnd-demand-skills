@@ -1,29 +1,12 @@
-# 评分校准规则 - 自学习产出
-# 此文件由 AI 根据用户反馈自动更新，无需手动编辑
-# 每次用户纠正评分后，AI 会提取校准规则追加到此文件
+# 校准规则 v1.0
+# 存储从用户反馈中提取的校准规则，评分时优先于基础规则
 
 version: "1.0"
-updated_at: "2026-05-13"
-total_feedbacks: 0
 confidence_level: "initial"
+total_feedbacks: 0
 
-# 维度校准规则
-# 当匹配到特定模式时，对评分进行修正
 dimension_calibrations: []
 
-# 示例（由反馈自动生成）：
-# - trigger: "仅个人使用"
-#   dimension: "影响范围"
-#   action: "force_score"
-#   value: 0
-#   reason: "用户纠正：个人需求影响范围应为0分"
-#   learned_from: "D002"
-#   learned_at: "2026-05-13"
-
-# 阈值校准
-# 根据历史反馈调整分级阈值
 threshold_calibrations: []
 
-# 模式校准
-# 从历史需求中提取的评分模式
 pattern_calibrations: []
