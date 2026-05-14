@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 rules/version_history.json
+__pycache__/
+*.pyc
+rules/version_history.json

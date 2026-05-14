@@ -67,6 +67,54 @@ class DemandScorer:
 - 减少技术债 / 不增不减 / 增加技术债？
 """
 
+    def _build_demand_info_section(self, demand: dict) -> str:
+        """构建需求信息段，支持补全后的丰富字段"""
+        lines = []
+
+        if demand.get('demand_name'):
+            lines.append(f"- 需求名称: {demand['demand_name']}")
+        if demand.get('demand_id'):
+            lines.append(f"- 需求ID: {demand['demand_id']}")
+        else:
+            lines.append(f"- 需求ID: {demand.get('id', 'unknown')}")
+        if demand.get('demand_category'):
+            lines.append(f"- 需求分类: {demand['demand_category']}")
+        if demand.get('description'):
+            lines.append(f"- 需求描述: {demand['description']}")
+        if demand.get('background'):
+            lines.append(f"- 需求背景: {demand['background']}")
+        if demand.get('pain_points'):
+            lines.append(f"- 业务痛点: {demand['pain_points']}")
+        if demand.get('target_users'):
+            lines.append(f"- 目标用户: {demand['target_users']}")
+        if demand.get('usage_scenario'):
+            lines.append(f"- 使用场景: {demand['usage_scenario']}")
+        if demand.get('user_story'):
+            lines.append(f"- 用户故事: {demand['user_story']}")
+        if demand.get('expected_value'):
+            lines.append(f"- 预期价值: {demand['expected_value']}")
+        if demand.get('cross_department_impact'):
+            lines.append(f"- 跨部门影响: {demand['cross_department_impact']}")
+        if demand.get('resource_input'):
+            lines.append(f"- 资源投入: {demand['resource_input']}")
+        if demand.get('deadline_risk'):
+            lines.append(f"- 截止风险: {demand['deadline_risk']}")
+        if demand.get('success_metrics'):
+            lines.append(f"- 成功指标: {demand['success_metrics']}")
+        if demand.get('risks_assumptions'):
+            lines.append(f"- 风险与假设: {demand['risks_assumptions']}")
+
+        confidence = demand.get('confidence', {})
+        if confidence:
+            confirmed = confidence.get('confirmed', [])
+            inferred = confidence.get('inferred', [])
+            assumed = confidence.get('assumed', [])
+            lines.append(f"- 信息置信度: 已确认({len(confirmed)}项) / 推测({len(inferred)}项) / 待确认({len(assumed)}项)")
+            if assumed:
+                lines.append(f"- 待确认信息: {', '.join(assumed)}")
+
+        return '\n'.join(lines)
+
     def _build_scoring_prompt(self, demand: dict, strategy_focus: list = None, calibration_rules: list = None) -> str:
         calibration_section = ""
         if calibration_rules:
@@ -78,6 +126,8 @@ class DemandScorer:
 ## 校准规则（自学习产出，优先级高于基础规则）
 {rules_text}
 """
+
+        demand_info = self._build_demand_info_section(demand)
 
         pm_framework_details = ""
         for dim_key, dim_data in self.dimensions.items():
@@ -93,16 +143,12 @@ PM框架支撑:
 {fw_text}
 """
 
-        return f"""你是一个专业的需求评审专家，精通产品管理方法论。请根据以下评分规则和PM专业框架对需求进行深度评分。
+        refined_note = "（已进行需求描述补全优化）" if demand.get('demand_name') or demand.get('background') else "（原始描述）"
+
+        return f"""你是一个专业的需求评审专家，精通产品管理方法论。请根据以下评分规则和PM专业框架对需求进行深度评分{refined_note}。
 
 ## 需求信息
-- 需求ID: {demand.get('id', 'unknown')}
-- 需求描述: {demand.get('description', '')}
-- 使用场景: {demand.get('usage_scenario', '')}
-- 预期价值: {demand.get('expected_value', '')}
-- 跨部门影响: {demand.get('cross_department_impact', '')}
-- 资源投入: {demand.get('resource_input', '')}
-- 截止风险: {demand.get('deadline_risk', '')}
+{demand_info}
 {f'- 战略重点: {", ".join(strategy_focus)}' if strategy_focus else ''}
 {calibration_section}
 {self._build_pm_framework_prompt(demand)}
